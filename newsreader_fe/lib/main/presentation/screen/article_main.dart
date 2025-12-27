@@ -39,7 +39,12 @@ class ArticleHomeScreen extends ConsumerWidget {
             ],
           ),
           body: SingleChildScrollView(
-            padding: EdgeInsets.all(isMobile ? 16 : 32),
+            padding: EdgeInsets.symmetric(
+              horizontal: constraints.maxWidth > 1440
+                  ? (constraints.maxWidth - 1440) / 2 + 32
+                  : (isMobile ? 16 : 32),
+              vertical: 32,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -65,7 +70,7 @@ class ArticleHomeScreen extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 24),
-                _buildArticleGrid(state, notifier, isMobile),
+                _buildArticleGrid(state, notifier, constraints.maxWidth),
               ],
             ),
           ),
@@ -334,9 +339,22 @@ class ArticleHomeScreen extends ConsumerWidget {
   Widget _buildArticleGrid(
     ArticleState state,
     ArticleNotifier notifier,
-    bool isMobile,
+    double width,
   ) {
     final articles = state.filteredArticles;
+
+    // 가로 너비에 따른 가변적인 열 개수 계산
+    int crossAxisCount;
+    if (width < 600) {
+      crossAxisCount = 1; // 모바일
+    } else if (width < 1000) {
+      crossAxisCount = 2; // 태블릿
+    } else if (width < 1400) {
+      crossAxisCount = 3; // 일반 데스크톱
+    } else {
+      crossAxisCount = 4; // 와이드 화면
+    }
+
     if (articles.isEmpty) {
       return Center(
         child: Column(
@@ -360,7 +378,7 @@ class ArticleHomeScreen extends ConsumerWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: isMobile ? 1 : 3,
+        crossAxisCount: crossAxisCount,
         crossAxisSpacing: 20,
         mainAxisSpacing: 20,
         mainAxisExtent: 220,
