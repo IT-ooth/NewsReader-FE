@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:url_launcher/url_launcher_string.dart';
@@ -23,6 +24,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   void _onScroll() {
+    // 무한 스크롤 로직
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       ref.read(newsProvider.notifier).fetchArticles(isLoadMore: true);
@@ -40,20 +42,41 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final state = ref.watch(newsProvider);
     final viewModel = ref.read(newsProvider.notifier);
 
+    // 1. 모바일 앱 환경인지 판별 (웹이 아니고, Android 또는 iOS인 경우)
+    final bool isMobileApp =
+        !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.android);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: _buildAppBar(),
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
-          // 필터 섹션을 상단에 고정시키는 SliverPersistentHeader 추가
-          SliverPersistentHeader(
-            pinned: true, // 스크롤 시 상단에 고정됨
-            delegate: _StickyFilterDelegate(
-              child: _buildFilterSection(state, viewModel),
+          // 2. 환경에 따라 다르게 동작하는 필터 섹션
+          // 2. 환경에 따라 다르게 동작하는 필터 섹션
+          SliverAppBar(
+            primary: false,
+            // 웹이거나 앱이 아닌 환경(데스크톱)에서는 무조건 고정
+            pinned: kIsWeb || !isMobileApp,
+            // 모바일 앱 환경에서만 스크롤 방향에 따라 반응
+            floating: !kIsWeb && isMobileApp,
+            snap: !kIsWeb && isMobileApp,
+
+            backgroundColor: Colors.white,
+            elevation: 0,
+            toolbarHeight: 105.0,
+            collapsedHeight: kIsWeb || !isMobileApp ? 105.0 : 0,
+            expandedHeight: 105.0, // 필터 영역 높이
+            surfaceTintColor: Colors.transparent,
+            flexibleSpace: FlexibleSpaceBar(
+              background: _buildFilterSection(state, viewModel),
             ),
           ),
+
           _buildArticleList(state, viewModel),
+
           if (state.isLoading)
             const SliverToBoxAdapter(
               child: Padding(
@@ -65,6 +88,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       ),
     );
   }
+
+  // --- UI 구성 메서드들 ---
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
@@ -92,7 +117,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             ),
             child: const Center(
               child: Text(
-                "IT",
+                "NR",
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -103,7 +128,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           ),
           const SizedBox(width: 10),
           const Text(
-            "TechFeed",
+            "NewsReader",
             style: TextStyle(
               color: Color(0xFF111827),
               fontWeight: FontWeight.w800,
@@ -126,8 +151,17 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
 
-  // 필터 섹션 위젯
   Widget _buildFilterSection(NewsState state, NewsViewModel viewModel) {
+    const Map<String, String> categoryDisplayNames = {
+      'all': '전체 주제',
+      'Tech': 'IT/기술',
+      'Economy': '경제',
+      'Politics': '정치',
+      'Society': '사회',
+      'Culture': '문화',
+      'World': '세계',
+    };
+
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
@@ -136,7 +170,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       ),
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           _buildFilterRow(
             icon: LucideIcons.filter,
@@ -150,11 +184,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           const SizedBox(height: 12),
           _buildFilterRow(
             icon: LucideIcons.tag,
-            label: "TOPIC",
+            label: "CATEGORY",
             items: state.categories,
             activeItem: state.activeCategory,
             onTap: viewModel.setCategory,
-            labelMapper: (cat) => cat == 'all' ? '전체 주제' : cat,
+            labelMapper: (cat) => categoryDisplayNames[cat] ?? cat,
             isCategory: true,
           ),
         ],
@@ -329,6 +363,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 상단 메타 정보 (카테고리, 장르, 읽기 시간)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -379,15 +414,22 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   ),
                   Row(
                     children: [
-                      const Icon(
-                        LucideIcons.clock,
-                        size: 12,
-                        color: Color(0xFF9CA3AF),
+                      CircleAvatar(
+                        radius: 12,
+                        backgroundColor: const Color(0xFFF3F4F6),
+                        child: Text(
+                          art.source.isNotEmpty ? art.source[0] : "?",
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF9CA3AF),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                      const SizedBox(width: 4),
-                      const Text(
-                        "5분",
-                        style: TextStyle(
+                      const SizedBox(width: 8),
+                      Text(
+                        art.source,
+                        style: const TextStyle(
                           fontSize: 11,
                           color: Color(0xFF9CA3AF),
                         ),
@@ -397,6 +439,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 ],
               ),
               const SizedBox(height: 12),
+              // 제목 및 요약
               Text(
                 art.title,
                 style: const TextStyle(
@@ -420,38 +463,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               const SizedBox(height: 20),
               Container(height: 1, color: const Color(0xFFF9FAFB)),
               const SizedBox(height: 16),
+              // 하단 푸터 (출처, 난이도 뱃지)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     children: [
-                      CircleAvatar(
-                        radius: 12,
-                        backgroundColor: const Color(0xFFF3F4F6),
-                        child: Text(
-                          art.source.isNotEmpty ? art.source[0] : "?",
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Color(0xFF9CA3AF),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        art.source,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF374151),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      const Text(
-                        "•",
-                        style: TextStyle(color: Color(0xFFD1D5DB)),
-                      ),
-                      const SizedBox(width: 6),
                       const Text(
                         "방금 전",
                         style: TextStyle(
@@ -489,18 +506,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(
-                        LucideIcons.bookmark,
-                        size: 18,
-                        color: Color(0xFFD1D5DB),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(
-                        LucideIcons.share2,
-                        size: 18,
-                        color: Color(0xFFD1D5DB),
                       ),
                     ],
                   ),
@@ -563,29 +568,4 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       'icon': '🧠',
     },
   };
-}
-
-class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
-  final Widget child;
-
-  _StickyFilterDelegate({required this.child});
-
-  // 98.0에서 105.0 정도로 여유 있게 늘려줍니다.
-  @override
-  double get minExtent => 105.0;
-  @override
-  double get maxExtent => 105.0;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    // 내부에서 Overflow가 발생하지 않도록 SizedBox로 감싸줍니다.
-    return SizedBox.expand(child: child);
-  }
-
-  @override
-  bool shouldRebuild(_StickyFilterDelegate oldDelegate) => true;
 }

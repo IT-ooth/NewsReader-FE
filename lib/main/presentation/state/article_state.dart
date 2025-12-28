@@ -8,6 +8,17 @@ class NewsState {
   final bool hasMore;
   final int offset;
 
+  // ✅ 고정 카테고리 리스트 정의
+  static const List<String> fixedCategories = [
+    'all',
+    'Tech',
+    'Economy',
+    'Politics',
+    'Society',
+    'Culture',
+    'World',
+  ];
+
   NewsState({
     this.activeLevel = 'all',
     this.activeCategory = 'all',
@@ -17,11 +28,8 @@ class NewsState {
     this.offset = 0,
   });
 
-  // 동적 카테고리 추출 게터
-  List<String> get categories {
-    final cats = allArticles.map((a) => a.category).toSet().toList();
-    return ['all', ...cats];
-  }
+  // ✅ 기존 동적 추출 로직을 제거하고 고정 리스트 반환
+  List<String> get categories => fixedCategories;
 
   NewsState copyWith({
     String? activeLevel,
