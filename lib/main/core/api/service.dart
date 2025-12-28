@@ -7,7 +7,7 @@ class NewsService {
   NewsService() {
     _dio = Dio(
       BaseOptions(
-        baseUrl: 'http://danyeon.cloud:50080',
+        baseUrl: 'https://danyeon.cloud:50443',
         connectTimeout: const Duration(seconds: 5),
         receiveTimeout: const Duration(seconds: 3),
       ),

@@ -41,34 +41,31 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final viewModel = ref.read(newsProvider.notifier);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB), // gray-50
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: _buildAppBar(),
-      body: Column(
-        children: [
-          _buildFilterSection(state, viewModel),
-          Expanded(
-            child: CustomScrollView(
-              controller: _scrollController,
-              slivers: [
-                _buildArticleList(state, viewModel),
-                if (state.isLoading)
-                  const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Center(
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                  ),
-              ],
+      body: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          // 필터 섹션을 상단에 고정시키는 SliverPersistentHeader 추가
+          SliverPersistentHeader(
+            pinned: true, // 스크롤 시 상단에 고정됨
+            delegate: _StickyFilterDelegate(
+              child: _buildFilterSection(state, viewModel),
             ),
           ),
+          _buildArticleList(state, viewModel),
+          if (state.isLoading)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  // 1. 상단 헤더 (React: header)
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       backgroundColor: Colors.white.withOpacity(0.95),
@@ -83,7 +80,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: const Color(0xFF4F46E5), // indigo-600
+              color: const Color(0xFF4F46E5),
               borderRadius: BorderRadius.circular(8),
               boxShadow: [
                 BoxShadow(
@@ -129,7 +126,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
 
-  // 2. 필터 섹션 (React: Filter Section)
+  // 필터 섹션 위젯
   Widget _buildFilterSection(NewsState state, NewsViewModel viewModel) {
     return Container(
       width: double.infinity,
@@ -139,6 +136,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       ),
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           _buildFilterRow(
             icon: LucideIcons.filter,
@@ -215,15 +213,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                                 : Colors.transparent,
                           )
                         : null,
-                    boxShadow: isActive && !isCategory
-                        ? [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : null,
                   ),
                   child: Text(
                     labelMapper(item),
@@ -246,7 +235,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
 
-  // 3. 메인 리스트 (React: main)
   Widget _buildArticleList(NewsState state, NewsViewModel viewModel) {
     final articles = state.allArticles;
 
@@ -552,27 +540,52 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   static const Map<String, Map<String, dynamic>> _levelConfig = {
     'low': {
       'label': '입문',
-      'bg': Color(0xFFECFDF5), // emerald-50
-      'text': Color(0xFF047857), // emerald-700
-      'border': Color(0xFF10B981), // emerald-500
-      'badgeBg': Color(0xFFD1FAE5), // emerald-100
+      'bg': Color(0xFFECFDF5),
+      'text': Color(0xFF047857),
+      'border': Color(0xFF10B981),
+      'badgeBg': Color(0xFFD1FAE5),
       'icon': '🐣',
     },
     'medium': {
       'label': '실무',
-      'bg': Color(0xFFEFF6FF), // blue-50
-      'text': Color(0xFF1D4ED8), // blue-700
-      'border': Color(0xFF3B82F6), // blue-500
-      'badgeBg': Color(0xFFDBEAFE), // blue-100
+      'bg': Color(0xFFEFF6FF),
+      'text': Color(0xFF1D4ED8),
+      'border': Color(0xFF3B82F6),
+      'badgeBg': Color(0xFFDBEAFE),
       'icon': '💻',
     },
     'high': {
       'label': '심화',
-      'bg': Color(0xFFFAF5FF), // purple-50
-      'text': Color(0xFF7E22CE), // purple-700
-      'border': Color(0xFFA855F7), // purple-500
-      'badgeBg': Color(0xFFF3E8FF), // purple-100
+      'bg': Color(0xFFFAF5FF),
+      'text': Color(0xFF7E22CE),
+      'border': Color(0xFFA855F7),
+      'badgeBg': Color(0xFFF3E8FF),
       'icon': '🧠',
     },
   };
+}
+
+class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+
+  _StickyFilterDelegate({required this.child});
+
+  // 98.0에서 105.0 정도로 여유 있게 늘려줍니다.
+  @override
+  double get minExtent => 105.0;
+  @override
+  double get maxExtent => 105.0;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    // 내부에서 Overflow가 발생하지 않도록 SizedBox로 감싸줍니다.
+    return SizedBox.expand(child: child);
+  }
+
+  @override
+  bool shouldRebuild(_StickyFilterDelegate oldDelegate) => true;
 }
