@@ -74,10 +74,10 @@ pipeline {
             }
         }
         success {
-            echo "✅ 배포 성공! http://news.danyeon.cloud 에서 확인하세요."
+            echo "배포 성공! http://news.danyeon.cloud 에서 확인하세요."
         }
         failure {
-            echo "❌ 배포 실패. 로그를 확인하세요."
+            echo "배포 실패. 로그를 확인하세요."
         }
     }
 }
