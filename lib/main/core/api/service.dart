@@ -7,9 +7,10 @@ class NewsService {
   NewsService() {
     _dio = Dio(
       BaseOptions(
-        baseUrl: 'https://danyeon.cloud:50443',
+        baseUrl: 'http://api.danyeon.cloud',
         connectTimeout: const Duration(seconds: 5),
         receiveTimeout: const Duration(seconds: 3),
+        headers: {"Content-Type": "application/json", "Accept": "*/*"},
       ),
     );
 

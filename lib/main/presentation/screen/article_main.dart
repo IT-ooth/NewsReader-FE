@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:newsreader_fe/main/core/model/model.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:newsreader_fe/main/domain/entity/article.dart';
 import 'package:newsreader_fe/main/presentation/provider/article_provider.dart';
@@ -24,7 +25,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   void _onScroll() {
-    // 무한 스크롤 로직
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       ref.read(newsProvider.notifier).fetchArticles(isLoadMore: true);
@@ -42,7 +42,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final state = ref.watch(newsProvider);
     final viewModel = ref.read(newsProvider.notifier);
 
-    // 1. 모바일 앱 환경인지 판별 (웹이 아니고, Android 또는 iOS인 경우)
     final bool isMobileApp =
         !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.iOS ||
@@ -54,29 +53,22 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
-          // 2. 환경에 따라 다르게 동작하는 필터 섹션
-          // 2. 환경에 따라 다르게 동작하는 필터 섹션
           SliverAppBar(
             primary: false,
-            // 웹이거나 앱이 아닌 환경(데스크톱)에서는 무조건 고정
             pinned: kIsWeb || !isMobileApp,
-            // 모바일 앱 환경에서만 스크롤 방향에 따라 반응
             floating: !kIsWeb && isMobileApp,
             snap: !kIsWeb && isMobileApp,
-
             backgroundColor: Colors.white,
             elevation: 0,
             toolbarHeight: 105.0,
             collapsedHeight: kIsWeb || !isMobileApp ? 105.0 : 0,
-            expandedHeight: 105.0, // 필터 영역 높이
+            expandedHeight: 105.0,
             surfaceTintColor: Colors.transparent,
             flexibleSpace: FlexibleSpaceBar(
               background: _buildFilterSection(state, viewModel),
             ),
           ),
-
           _buildArticleList(state, viewModel),
-
           if (state.isLoading)
             const SliverToBoxAdapter(
               child: Padding(
@@ -152,16 +144,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   Widget _buildFilterSection(NewsState state, NewsViewModel viewModel) {
-    const Map<String, String> categoryDisplayNames = {
-      'all': '전체 주제',
-      'Tech': 'IT/기술',
-      'Economy': '경제',
-      'Politics': '정치',
-      'Society': '사회',
-      'Culture': '문화',
-      'World': '세계',
-    };
-
+    // 하드코딩된 Map 삭제됨. Enum.values 사용
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
@@ -172,23 +155,22 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _buildFilterRow(
+          _buildFilterRow<NewsLevel>(
             icon: LucideIcons.filter,
             label: "LEVEL",
-            items: ['all', 'low', 'medium', 'high'],
+            items: NewsLevel.values, // Enum 리스트
             activeItem: state.activeLevel,
             onTap: viewModel.setLevel,
-            labelMapper: (lvl) =>
-                lvl == 'all' ? '전체 난이도' : _levelConfig[lvl]!['label'],
+            labelMapper: (lvl) => lvl.label, // Enum 프로퍼티 사용
           ),
           const SizedBox(height: 12),
-          _buildFilterRow(
+          _buildFilterRow<NewsCategory>(
             icon: LucideIcons.tag,
             label: "CATEGORY",
-            items: state.categories,
+            items: NewsCategory.values, // Enum 리스트
             activeItem: state.activeCategory,
             onTap: viewModel.setCategory,
-            labelMapper: (cat) => categoryDisplayNames[cat] ?? cat,
+            labelMapper: (cat) => cat.displayName, // Enum 프로퍼티 사용
             isCategory: true,
           ),
         ],
@@ -196,13 +178,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
 
-  Widget _buildFilterRow({
+  Widget _buildFilterRow<T>({
     required IconData icon,
     required String label,
-    required List<String> items,
-    required String activeItem,
-    required Function(String) onTap,
-    required String Function(String) labelMapper,
+    required List<T> items,
+    required T activeItem,
+    required Function(T) onTap,
+    required String Function(T) labelMapper,
     bool isCategory = false,
   }) {
     return SingleChildScrollView(
@@ -271,6 +253,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   Widget _buildArticleList(NewsState state, NewsViewModel viewModel) {
     final articles = state.allArticles;
+    // Enum 비교로 변경
+    final isDefaultFilter =
+        state.activeLevel == NewsLevel.all &&
+        state.activeCategory == NewsCategory.all;
 
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
@@ -283,7 +269,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "${state.activeCategory == 'all' ? '추천' : state.activeCategory} 뉴스",
+                    "${state.activeCategory == NewsCategory.all ? '추천' : state.activeCategory.displayName} 뉴스",
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -299,7 +285,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   ),
                 ],
               ),
-              if (state.activeLevel != 'all' || state.activeCategory != 'all')
+              if (!isDefaultFilter)
                 TextButton(
                   onPressed: viewModel.resetFilters,
                   child: const Text(
@@ -337,7 +323,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   Widget _buildArticleCard(Article art) {
-    final config = _levelConfig[art.level] ?? _levelConfig['low']!;
+    // 아티클의 String level 값을 Enum으로 변환하여 UI 설정값을 가져옴
+    final config = NewsLevel.fromKey(art.level);
+
     return GestureDetector(
       onTap: () async {
         if (art.url != null && await canLaunchUrlString(art.url!)) {
@@ -349,7 +337,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border(left: BorderSide(color: config['border'], width: 4)),
+          border: Border(left: BorderSide(color: config.borderColor, width: 4)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.04),
@@ -363,7 +351,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 상단 메타 정보 (카테고리, 장르, 읽기 시간)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -375,7 +362,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: config['bg'],
+                          color: config.bgColor,
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -383,11 +370,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
-                            color: config['text'],
+                            color: config.textColor,
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
+                      // ... 기존 코드 유지 ...
                       const Text(
                         "/",
                         style: TextStyle(
@@ -439,7 +427,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              // 제목 및 요약
               Text(
                 art.title,
                 style: const TextStyle(
@@ -463,20 +450,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               const SizedBox(height: 20),
               Container(height: 1, color: const Color(0xFFF9FAFB)),
               const SizedBox(height: 16),
-              // 하단 푸터 (출처, 난이도 뱃지)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      const Text(
-                        "방금 전",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF9CA3AF),
-                        ),
-                      ),
-                    ],
+                  const Text(
+                    "방금 전",
+                    style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
                   ),
                   Row(
                     children: [
@@ -486,22 +465,22 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: config['badgeBg'],
+                          color: config.badgeBgColor,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Row(
                           children: [
                             Text(
-                              config['icon'],
+                              config.icon,
                               style: const TextStyle(fontSize: 12),
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              config['label'],
+                              config.label,
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
-                                color: config['text'],
+                                color: config.textColor,
                               ),
                             ),
                           ],
@@ -519,6 +498,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   Widget _buildEmptyState() {
+    // ... (생략: 기존 코드와 동일)
     return const Padding(
       padding: EdgeInsets.symmetric(vertical: 80),
       child: Column(
@@ -541,31 +521,4 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       ),
     );
   }
-
-  static const Map<String, Map<String, dynamic>> _levelConfig = {
-    'low': {
-      'label': '입문',
-      'bg': Color(0xFFECFDF5),
-      'text': Color(0xFF047857),
-      'border': Color(0xFF10B981),
-      'badgeBg': Color(0xFFD1FAE5),
-      'icon': '🐣',
-    },
-    'medium': {
-      'label': '실무',
-      'bg': Color(0xFFEFF6FF),
-      'text': Color(0xFF1D4ED8),
-      'border': Color(0xFF3B82F6),
-      'badgeBg': Color(0xFFDBEAFE),
-      'icon': '💻',
-    },
-    'high': {
-      'label': '심화',
-      'bg': Color(0xFFFAF5FF),
-      'text': Color(0xFF7E22CE),
-      'border': Color(0xFFA855F7),
-      'badgeBg': Color(0xFFF3E8FF),
-      'icon': '🧠',
-    },
-  };
 }

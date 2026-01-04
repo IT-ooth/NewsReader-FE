@@ -1,39 +1,26 @@
+import 'package:newsreader_fe/main/core/model/model.dart';
 import 'package:newsreader_fe/main/domain/entity/article.dart';
 
 class NewsState {
-  final String activeLevel;
-  final String activeCategory;
+  final NewsLevel activeLevel; // String -> Enum 변경
+  final NewsCategory activeCategory; // String -> Enum 변경
   final List<Article> allArticles;
   final bool isLoading;
   final bool hasMore;
   final int offset;
 
-  // ✅ 고정 카테고리 리스트 정의
-  static const List<String> fixedCategories = [
-    'all',
-    'Tech',
-    'Economy',
-    'Politics',
-    'Society',
-    'Culture',
-    'World',
-  ];
-
   NewsState({
-    this.activeLevel = 'all',
-    this.activeCategory = 'all',
+    this.activeLevel = NewsLevel.all, // 기본값 Enum
+    this.activeCategory = NewsCategory.all, // 기본값 Enum
     this.allArticles = const [],
     this.isLoading = false,
     this.hasMore = true,
     this.offset = 0,
   });
 
-  // ✅ 기존 동적 추출 로직을 제거하고 고정 리스트 반환
-  List<String> get categories => fixedCategories;
-
   NewsState copyWith({
-    String? activeLevel,
-    String? activeCategory,
+    NewsLevel? activeLevel,
+    NewsCategory? activeCategory,
     List<Article>? allArticles,
     bool? isLoading,
     bool? hasMore,
